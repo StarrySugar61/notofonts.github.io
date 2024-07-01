@@ -9,9 +9,9 @@ state = json.load(open('../state.json'))
 warnings = []
 
 
-def megamerge_planes(newname, base_font, tier_predicate, banned, modulation):
-    glyph_count = len(TTFont(base_font).getGlyphOrder())
-    selected_repos = [k for k, v in tiers.items() if tier_predicate(v.get("tier", 4))]
+def megamerge_planes(newname, base_font, glyph_predicate, banned, modulation):
+    # glyph_count = len(TTFont(base_font).getGlyphOrder())
+    selected_repos = [k for k, v in tiers.items()]
     selected_repos = [k for k in selected_repos if k not in banned]
     selected_repos = sorted(selected_repos, key=lambda k: tiers[k]["tier"])
     mergelist = [base_font]
@@ -37,34 +37,37 @@ def megamerge_planes(newname, base_font, tier_predicate, banned, modulation):
         if target is None:
             print(f"Couldn't find a target for {repo}")
             continue
-        target_font = TTFont("../" + target)
-        glyph_count += len(target_font.getGlyphOrder())
-        if glyph_count > 65535:
-            warnings.append(f"Too many glyphs while building {newname}, stopped at {repo}")
-            break
+        # target_font = TTFont("../" + target)
+        # glyph_count += len(target_font.getGlyphOrder())
+        # if glyph_count > 65535:
+        #     warnings.append(f"Too many glyphs while building {newname}, stopped at {repo}")
+        #     break
         mergelist.append("../" + target)
     print("Merging: ")
     for x in mergelist:
         print("  " + os.path.basename(x))
     merger = Merger(options=Options(drop_tables=["vmtx", "vhea", "MATH"]))
     merged = merger.merge(mergelist)
+    # FIXME: remove glyphs that not in current plane
+    filter = (glyph for glyph in merged.getGlyphOrder() if glyph_predicate(merged.getGlyphID(glyph)))
+    for item in merged.glyphOrder:
+        if item not in filter:
+            merged.__delitem__(item)
     rename_font(merged, newname)
     merged.save(newname.replace(" ", "") + "-Regular.ttf")
 
 
 for modulation in ["Sans", "Serif"]:
     banned = ["duployan", "latin-greek-cyrillic", "sign-writing", "test"]
-    if modulation == "sans":
-        banned.append("devanagari")  # Already included
-    megamerge_planes(f"Noto {modulation} Living",
+    megamerge_planes(f"Noto {modulation} Plane 0",
                      base_font=f"../fonts/Noto{modulation}/googlefonts/ttf/Noto{modulation}-Regular.ttf",
-                     tier_predicate=lambda x: x <= 3,
+                     glyph_predicate=lambda x: 0 <= x < 0x10000,
                      banned=banned,
                      modulation=modulation,
                      )
-    megamerge_planes(f"Noto {modulation} Historical",
+    megamerge_planes(f"Noto {modulation} Plane 1",
                      base_font=f"../fonts/Noto{modulation}/googlefonts/ttf/Noto{modulation}-Regular.ttf",
-                     tier_predicate=lambda x: x > 3,
+                     glyph_predicate=lambda x: 0x10000 <= x < 0x20000,
                      banned=banned,
                      modulation=modulation
                      )
