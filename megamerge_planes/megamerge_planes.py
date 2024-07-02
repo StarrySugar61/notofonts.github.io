@@ -10,6 +10,13 @@ tiers = json.load(open('../fontrepos.json'))
 state = json.load(open('../state.json'))
 warnings = []
 
+# IDK!
+# use another style as fallback!
+modulation2 = [
+    ["Sans", ["Sans", "Serif"]],
+    ["Serif", ["Serif", "Sans"]],
+]
+
 
 def megamerge_planes(newname, base_font, glyph_range, banned, modulation):
     # glyph_count = len(TTFont(base_font).getGlyphOrder())
@@ -17,34 +24,35 @@ def megamerge_planes(newname, base_font, glyph_range, banned, modulation):
     selected_repos = [k for k in selected_repos if k not in banned]
     selected_repos = sorted(selected_repos, key=lambda k: tiers[k]["tier"])
     mergelist = [base_font]
-    for repo in selected_repos:
-        if "families" not in state[repo]:
-            print(f"Skipping odd repo {repo} (no families)")
-            continue
-        selected_families = [x for x in state[repo]["families"].keys() if modulation in x and "UI" not in x]
-        if not selected_families:
-            continue
-        files = state[repo]["families"][selected_families[0]]["files"]
-        files = [x for x in files if "Regular.ttf" in x and "UI" not in x]
-        target = None
-        for file in files:
-            if "/hinted/" in file:
-                target = file
-                break
-        if target is None:
+    for m in modulation:
+        for repo in selected_repos:
+            if "families" not in state[repo]:
+                print(f"Skipping odd repo {repo} (no families)")
+                continue
+            selected_families = [x for x in state[repo]["families"].keys() if m in x and "UI" not in x]
+            if not selected_families:
+                continue
+            files = state[repo]["families"][selected_families[0]]["files"]
+            files = [x for x in files if "Regular.ttf" in x and "UI" not in x]
+            target = None
             for file in files:
-                if "/unhinted/" in file:
+                if "/hinted/" in file:
                     target = file
                     break
-        if target is None:
-            print(f"Couldn't find a target for {repo}")
-            continue
-        # target_font = TTFont("../" + target)
-        # glyph_count += len(target_font.getGlyphOrder())
-        # if glyph_count > 65535:
-        #     warnings.append(f"Too many glyphs while building {newname}, stopped at {repo}")
-        #     break
-        mergelist.append("../" + target)
+            if target is None:
+                for file in files:
+                    if "/unhinted/" in file:
+                        target = file
+                        break
+            if target is None:
+                print(f"Couldn't find a target for {repo}")
+                continue
+            # target_font = TTFont("../" + target)
+            # glyph_count += len(target_font.getGlyphOrder())
+            # if glyph_count > 65535:
+            #     warnings.append(f"Too many glyphs while building {newname}, stopped at {repo}")
+            #     break
+            mergelist.append("../" + target)
     print("Merging: ")
     for x in mergelist:
         print("  " + os.path.basename(x))
@@ -57,19 +65,19 @@ def megamerge_planes(newname, base_font, glyph_range, banned, modulation):
     merged.save(newname.replace(" ", "") + "-Regular.ttf")
 
 
-for modulation in ["Sans", "Serif"]:
+for modulation in modulation2:
     banned = ["duployan", "latin-greek-cyrillic", "sign-writing", "test"]
-    megamerge_planes(f"Noto {modulation} Plane 0",
-                     base_font=f"../fonts/Noto{modulation}/googlefonts/ttf/Noto{modulation}-Regular.ttf",
+    megamerge_planes(f"Noto {modulation[0]} Plane 0",
+                     base_font=f"../fonts/Noto{modulation[0]}/googlefonts/ttf/Noto{modulation[0]}-Regular.ttf",
                      glyph_range=range(0x0, 0x10000),
                      banned=banned,
-                     modulation=modulation,
+                     modulation=modulation[1],
                      )
-    megamerge_planes(f"Noto {modulation} Plane 1",
-                     base_font=f"../fonts/Noto{modulation}/googlefonts/ttf/Noto{modulation}-Regular.ttf",
+    megamerge_planes(f"Noto {modulation[0]} Plane 1",
+                     base_font=f"../fonts/Noto{modulation[0]}/googlefonts/ttf/Noto{modulation[0]}-Regular.ttf",
                      glyph_range=range(0x10000, 0x20000),
                      banned=banned,
-                     modulation=modulation
+                     modulation=modulation[1]
                      )
 
 if warnings:
