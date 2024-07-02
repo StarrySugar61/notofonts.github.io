@@ -1,10 +1,10 @@
 import json
 import os
 
-from fontTools.subset import Subsetter
-from fontTools.ttLib import TTFont
 from fontTools.merge import Merger, Options
+from fontTools.subset import Subsetter
 from gftools.fix import rename_font
+from fontTools.subset import Options as SubsetterOptions
 
 tiers = json.load(open('../fontrepos.json'))
 state = json.load(open('../state.json'))
@@ -12,6 +12,7 @@ warnings = []
 
 # IDK!
 # use another style as fallback!
+# Maybe it's my first time coding in Python >_<
 modulation2 = [
     ["Sans", ["Sans", "Serif"]],
     ["Serif", ["Serif", "Sans"]],
@@ -32,34 +33,41 @@ def megamerge_planes(newname, base_font, glyph_range, banned, modulation):
             selected_families = [x for x in state[repo]["families"].keys() if m in x and "UI" not in x]
             if not selected_families:
                 continue
-            files = state[repo]["families"][selected_families[0]]["files"]
-            files = [x for x in files if "Regular.ttf" in x and "UI" not in x]
-            target = None
-            for file in files:
-                if "/hinted/" in file:
-                    target = file
-                    break
-            if target is None:
+            # Fix symbol2 not included!
+            if repo == "symbols":
+                families = [selected_families[0], selected_families[1]]
+            else:
+                families = [selected_families[0]]
+            for family in families:
+                files = state[repo]["families"][family]["files"]
+                files = [x for x in files if "Regular.ttf" in x and "UI" not in x]
+                target = None
                 for file in files:
-                    if "/unhinted/" in file:
+                    if "/hinted/" in file:
                         target = file
                         break
-            if target is None:
-                print(f"Couldn't find a target for {repo}")
-                continue
-            # target_font = TTFont("../" + target)
-            # glyph_count += len(target_font.getGlyphOrder())
-            # if glyph_count > 65535:
-            #     warnings.append(f"Too many glyphs while building {newname}, stopped at {repo}")
-            #     break
-            mergelist.append("../" + target)
+                if target is None:
+                    for file in files:
+                        if "/unhinted/" in file:
+                            target = file
+                            break
+                if target is None:
+                    print(f"Couldn't find a target for {repo}")
+                    continue
+                # target_font = TTFont("../" + target)
+                # glyph_count += len(target_font.getGlyphOrder())
+                # if glyph_count > 65535:
+                #     warnings.append(f"Too many glyphs while building {newname}, stopped at {repo}")
+                #     break
+                mergelist.append("../" + target)
     print("Merging: ")
     for x in mergelist:
         print("  " + os.path.basename(x))
+    # FIXME: Remove duplicate glyphs!!!
     merger = Merger(options=Options(drop_tables=["vmtx", "vhea", "MATH"]))
     merged = merger.merge(mergelist)
     rename_font(merged, newname)
-    subsetter = Subsetter()
+    subsetter = Subsetter(options=SubsetterOptions(recommended_glyphs=True))
     subsetter.unicodes_requested = set(glyph_range).union({0x25cc})
     subsetter.subset(merged)
     merged.save(newname.replace(" ", "") + "-Regular.ttf")
