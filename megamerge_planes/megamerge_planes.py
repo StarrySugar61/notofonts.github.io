@@ -1,5 +1,7 @@
 import json
 import os
+
+from fontTools.subset import Subsetter
 from fontTools.ttLib import TTFont
 from fontTools.merge import Merger, Options
 from gftools.fix import rename_font
@@ -9,7 +11,7 @@ state = json.load(open('../state.json'))
 warnings = []
 
 
-def megamerge_planes(newname, base_font, glyph_predicate, banned, modulation):
+def megamerge_planes(newname, base_font, glyph_range, banned, modulation):
     # glyph_count = len(TTFont(base_font).getGlyphOrder())
     selected_repos = [k for k, v in tiers.items()]
     selected_repos = [k for k in selected_repos if k not in banned]
@@ -48,12 +50,10 @@ def megamerge_planes(newname, base_font, glyph_predicate, banned, modulation):
         print("  " + os.path.basename(x))
     merger = Merger(options=Options(drop_tables=["vmtx", "vhea", "MATH"]))
     merged = merger.merge(mergelist)
-    # FIXME: remove glyphs that not in current plane
-    filter = (glyph for glyph in merged.getGlyphOrder() if glyph_predicate(merged.getGlyphID(glyph)))
-    for item in merged.glyphOrder:
-        if item not in filter:
-            merged.__delitem__(item)
     rename_font(merged, newname)
+    subsetter = Subsetter()
+    subsetter.unicodes_requested = set(glyph_range).union({0x25cc})
+    subsetter.subset(merged)
     merged.save(newname.replace(" ", "") + "-Regular.ttf")
 
 
@@ -61,13 +61,13 @@ for modulation in ["Sans", "Serif"]:
     banned = ["duployan", "latin-greek-cyrillic", "sign-writing", "test"]
     megamerge_planes(f"Noto {modulation} Plane 0",
                      base_font=f"../fonts/Noto{modulation}/googlefonts/ttf/Noto{modulation}-Regular.ttf",
-                     glyph_predicate=lambda x: 0 <= x < 0x10000,
+                     glyph_range=range(0x0, 0x10000),
                      banned=banned,
                      modulation=modulation,
                      )
     megamerge_planes(f"Noto {modulation} Plane 1",
                      base_font=f"../fonts/Noto{modulation}/googlefonts/ttf/Noto{modulation}-Regular.ttf",
-                     glyph_predicate=lambda x: 0x10000 <= x < 0x20000,
+                     glyph_range=range(0x10000, 0x20000),
                      banned=banned,
                      modulation=modulation
                      )
