@@ -63,13 +63,17 @@ def megamerge_planes(newname, base_font, glyph_range, banned, modulation):
     print("Merging: ")
     for x in mergelist:
         print("  " + os.path.basename(x))
-    # FIXME: Remove duplicate glyphs!!!
     merger = Merger(options=Options(drop_tables=["vmtx", "vhea", "MATH"]))
     merged = merger.merge(mergelist)
     rename_font(merged, newname)
     subsetter = Subsetter(options=SubsetterOptions(recommended_glyphs=True))
     subsetter.unicodes_requested = set(glyph_range).union({0x25cc})
     subsetter.subset(merged)
+    # Try to remove duplicate glyphs >_<
+    subsetter2 = Subsetter(options=SubsetterOptions(recommended_glyphs=True))
+    subsetter2.glyph_ids_requested = merged.getGlyphIDMany(
+        g for g in merged.getGlyphOrder() if not g.rsplit('.', 1)[-1].isdigit())
+    subsetter2.subset(merged)
     merged.save(newname.replace(" ", "") + "-Regular.ttf")
 
 
