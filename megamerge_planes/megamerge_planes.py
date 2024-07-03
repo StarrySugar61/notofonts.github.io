@@ -13,9 +13,10 @@ warnings = []
 # IDK!
 # use another style as fallback!
 # Maybe it's my first time coding in Python >_<
+# We use Naskh Arabic as serif here!
 modulation2 = [
-    ["Sans", ["Sans", "Serif"]],
-    ["Serif", ["Serif", "Sans"]],
+    ["Sans", ["Sans", "Serif", "Naskh"]],
+    ["Serif", ["Serif", "Naskh", "Sans"]],
 ]
 
 
@@ -25,41 +26,44 @@ def megamerge_planes(newname, base_font, glyph_range, banned, modulation):
     selected_repos = [k for k in selected_repos if k not in banned]
     selected_repos = sorted(selected_repos, key=lambda k: tiers[k]["tier"])
     mergelist = [base_font]
-    for m in modulation:
-        for repo in selected_repos:
-            if "families" not in state[repo]:
-                print(f"Skipping odd repo {repo} (no families)")
-                continue
+    for repo in selected_repos:
+        if "families" not in state[repo]:
+            print(f"Skipping odd repo {repo} (no families)")
+            continue
+        selected_families = None
+        for m in modulation:
             selected_families = [x for x in state[repo]["families"].keys() if m in x and "UI" not in x]
-            if not selected_families:
-                continue
-            # Fix symbol2 not included!
-            if repo == "symbols":
-                families = [selected_families[0], selected_families[1]]
-            else:
-                families = [selected_families[0]]
-            for family in families:
-                files = state[repo]["families"][family]["files"]
-                files = [x for x in files if "Regular.ttf" in x and "UI" not in x]
-                target = None
+            if selected_families:
+                break
+        if not selected_families:
+            continue
+        # Fix symbol2 not included!
+        if repo == "symbols":
+            families = [selected_families[0], selected_families[1]]
+        else:
+            families = [selected_families[0]]
+        for family in families:
+            files = state[repo]["families"][family]["files"]
+            files = [x for x in files if "Regular.ttf" in x and "UI" not in x]
+            target = None
+            for file in files:
+                if "/hinted/" in file:
+                    target = file
+                    break
+            if target is None:
                 for file in files:
-                    if "/hinted/" in file:
+                    if "/unhinted/" in file:
                         target = file
                         break
-                if target is None:
-                    for file in files:
-                        if "/unhinted/" in file:
-                            target = file
-                            break
-                if target is None:
-                    print(f"Couldn't find a target for {repo}")
-                    continue
-                # target_font = TTFont("../" + target)
-                # glyph_count += len(target_font.getGlyphOrder())
-                # if glyph_count > 65535:
-                #     warnings.append(f"Too many glyphs while building {newname}, stopped at {repo}")
-                #     break
-                mergelist.append("../" + target)
+            if target is None:
+                print(f"Couldn't find a target for {repo}")
+                continue
+            # target_font = TTFont("../" + target)
+            # glyph_count += len(target_font.getGlyphOrder())
+            # if glyph_count > 65535:
+            #     warnings.append(f"Too many glyphs while building {newname}, stopped at {repo}")
+            #     break
+            mergelist.append("../" + target)
     print("Merging: ")
     for x in mergelist:
         print("  " + os.path.basename(x))
@@ -69,11 +73,6 @@ def megamerge_planes(newname, base_font, glyph_range, banned, modulation):
     subsetter = Subsetter(options=SubsetterOptions(recommended_glyphs=True))
     subsetter.unicodes_requested = set(glyph_range).union({0x25cc})
     subsetter.subset(merged)
-    # Try to remove duplicate glyphs >_<
-    subsetter2 = Subsetter(options=SubsetterOptions(recommended_glyphs=True))
-    subsetter2.glyph_ids_requested = merged.getGlyphIDMany(
-        g for g in merged.getGlyphOrder() if not g.rsplit('.', 1)[-1].isdigit())
-    subsetter2.subset(merged)
     merged.save(newname.replace(" ", "") + "-Regular.ttf")
 
 
