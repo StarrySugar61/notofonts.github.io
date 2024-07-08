@@ -15,8 +15,8 @@ warnings = []
 # Maybe it's my first time coding in Python >_<
 # We use Naskh Arabic as serif here!
 modulation2 = [
-    ["Sans", ["Sans", "Serif", "Naskh"]],
-    ["Serif", ["Serif", "Naskh", "Sans"]],
+    ["Sans", ["Sans", "Serif"]],
+    ["Serif", ["Serif", "Sans"]],
 ]
 
 
